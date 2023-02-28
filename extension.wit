@@ -1,8 +1,29 @@
-record state {
-  buffer: list<u8>,
-  idx: s32
-}
-greet: func(name: string) -> string
-answer-to-life: func() -> s32
-set-state: func(s: state) -> s32
-get-state: func() -> state
+type state = s32
+type blob = list<u8>
+type input = string
+
+/***************************/
+/*     Handle functions    */
+/***************************/
+
+// Initializes an empty bloom filter
+bloom-init-handle: func() -> state
+
+// Adds a value to the bloom filter
+bloom-update-handle: func(s: state, input: input) -> state
+
+// Merges two bloom filters
+bloom-merge-handle: func(left: state, right: state) -> state
+
+// Serializes the bloom filter
+bloom-serialize-handle: func(s: state) -> blob
+
+// Deserializes the bloom filter
+bloom-deserialize-handle: func(filter: blob) -> state
+
+/***************************/
+/*     Handle functions    */
+/***************************/
+
+// Computes the theta value of the bloom
+bloom-maybe-exists: func(filter: blob, input: input) -> bool

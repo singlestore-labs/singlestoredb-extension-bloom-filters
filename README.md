@@ -1,6 +1,6 @@
 # SingleStoreDB extension template in Rust
 
-![Rust Build](https://github.com/singlestore-labs/singlestoredb-extension-rust-template/actions/workflows/rust-docker.yml/badge.svg) ![Release](https://github.com/singlestore-labs/singlestoredb-extension-rust-template/actions/workflows/release.yml/badge.svg)
+![Rust Build](https://github.com/singlestore-labs/singlestoredb-extension-bloom-filters/actions/workflows/rust-docker.yml/badge.svg) ![Release](https://github.com/singlestore-labs/singlestoredb-extension-bloom-filters/actions/workflows/release.yml/badge.svg)
 
 This repository provides a template repository for developing Wasm UDFs and TVFs for [SingleStoreDB](https://www.singlestore.com/) written in Rust. It contains a [VS Code](https://www.singlestore.com/) development container to help users get bootstrapped quickly, but can be used in any IDE that supports Rust development.
 
