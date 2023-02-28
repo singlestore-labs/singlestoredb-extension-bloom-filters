@@ -1,8 +1,36 @@
-# SingleStoreDB extension template in Rust
+# Bloom filters in SingleStoreDB
 
 ![Rust Build](https://github.com/singlestore-labs/singlestoredb-extension-bloom-filters/actions/workflows/rust-docker.yml/badge.svg) ![Release](https://github.com/singlestore-labs/singlestoredb-extension-bloom-filters/actions/workflows/release.yml/badge.svg)
 
-This repository provides a template repository for developing Wasm UDFs and TVFs for [SingleStoreDB](https://www.singlestore.com/) written in Rust. It contains a [VS Code](https://www.singlestore.com/) development container to help users get bootstrapped quickly, but can be used in any IDE that supports Rust development.
+## Introduction
+
+[Bloom filters](https://hur.st/bloomfilter/?n=1000000&p=0.01&m=&k=100) are a space-efficient probabilistic data structure that can be used to test whether an 
+element is a member of a set. They are commonly used in databases to test whether a value is present in a column,
+without having to scan the entire column. Bloom filters are also used in distributed systems to test whether a value
+is present in a distributed set, without having to communicate with all nodes in the system.
+
+Bloom filters are an efficient way to answer the question "Is this value POTENTIALLY present in this set?". 
+It determines whether the element either definitely is not in the set or may be in the set.
+z
+## Usage in SingleStore
+
+The library can import the following [UDF](https://docs.singlestore.com/managed-service/en/reference/code-engine---powered-by-wasm/create-wasm-udfs.html):
+* `bloom_maybe_exists`: checks if the value is MAYBE part of the set
+
+in addition the aggregate function `bloom_filter` is created as follows:
+```sql
+CREATE OR REPLACE AGGREGATE bloom_filter(text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL)
+RETURNS LONGBLOB NOT NULL
+WITH STATE HANDLE
+AS WASM FROM BASE64 '$WASM_B64'
+WITH WIT FROM BASE64 '$WIT_B64'
+INITIALIZE WITH bloom_init_handle
+ITERATE WITH bloom_update_handle
+MERGE WITH bloom_merge_handle
+TERMINATE WITH bloom_serialize_handle
+SERIALIZE WITH bloom_serialize_handle
+DESERIALIZE WITH bloom_deserialize_handle;
+```
 
 ## Tools
 
@@ -58,6 +86,7 @@ The SingleStoreDB Wasm UDF/TVF documentation is [here](https://docs.singlestore.
 
 ## Resources
 
+* [Bloom filters](https://hur.st/bloomfilter/?n=1000000&p=0.01&m=&k=100)
 * [Documentation](https://docs.singlestore.com)
 * [Twitter](https://twitter.com/SingleStoreDevs)
 * [SingleStore forums](https://www.singlestore.com/forum)

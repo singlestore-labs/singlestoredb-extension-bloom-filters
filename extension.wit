@@ -25,5 +25,5 @@ bloom-deserialize-handle: func(filter: blob) -> state
 /*     Handle functions    */
 /***************************/
 
-// Computes the theta value of the bloom
+// Checks if the value is MAYBE part of the set
 bloom-maybe-exists: func(filter: blob, input: input) -> bool
