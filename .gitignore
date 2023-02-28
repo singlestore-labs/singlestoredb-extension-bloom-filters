@@ -1,0 +1,12 @@
+# Build
+/target
+/Cargo.lock
+
+# Binaries
+*.wasm
+*.bin
+*.out
+
+# IDEs
+.idea
+.vscodeW

@@ -1,0 +1,8 @@
+record state {
+  buffer: list<u8>,
+  idx: s32
+}
+greet: func(name: string) -> string
+answer-to-life: func() -> s32
+set-state: func(s: state) -> s32
+get-state: func() -> state

@@ -1,0 +1,28 @@
+name: Release artifacts
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release-artifacts:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build docker image
+      run: docker build . -t singlestoredb-extension-rust -f Dockerfile
+    - name: Build WASM binary
+      run: docker run -v $PWD:/repo -w/repo singlestoredb-extension-rust /bin/bash -c 'cargo clippy -- -Dwarnings && cargo wasi build --release'
+    - name: Create importer
+      run: ./create_loader.sh
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
+        files: |
+          LICENSE
+          *.wit
+          *.wasm
+          load_extension.sql
