@@ -22,9 +22,12 @@ This is a User-Defined Aggregate (UDAF) that will generate a bloom filter from a
 This is a User-Defined Function (UDF) that will always returns 0 if its argument string does not match the filter.  If the string does match the filter, then it will *usually* return 1, but may 0.
 
 ## Building
-The Wasm module can be built using the following command.  You will need Rust with the WASI extension to do so.
+The Wasm module can be built using the following commands.  The build requires Rust with the WASI extension.
 ```bash
+# Install the WASI cargo extension.
 cargo install cargo-wasi
+
+# Compile the Wasm module.
 cargo wasi build --release
 ```
 The binary will be placed in `target/wasm32-wasi/release/extension.wasm`.
