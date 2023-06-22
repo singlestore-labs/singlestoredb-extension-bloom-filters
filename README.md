@@ -11,72 +11,99 @@ is present in a distributed set, without having to communicate with all nodes in
 
 Bloom filters are an efficient way to answer the question "Is this value POTENTIALLY present in this set?". 
 It determines whether the element either definitely is not in the set or may be in the set.
-z
-## Usage in SingleStore
 
-The library can import the following [UDF](https://docs.singlestore.com/managed-service/en/reference/code-engine---powered-by-wasm/create-wasm-udfs.html):
-* `bloom_maybe_exists`: checks if the value is MAYBE part of the set
+## Contents
+This library provides the following database objects.
 
-in addition the aggregate function `bloom_filter` is created as follows:
-```sql
-CREATE OR REPLACE AGGREGATE bloom_filter(text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL)
+### `bloom_filter`
+This is a User-Defined Aggregate (UDAF) that will generate a bloom filter from a column of strings.
+
+### `bloom_maybe_exists`
+This is a User-Defined Function (UDF) that will always returns 0 if its argument string does not match the filter.  If the string does match the filter, then it will *usually* return 1, but may 0.
+
+## Building
+The Wasm module can be built using the following command.  You will need Rust with the WASI extension to do so.
+```bash
+cargo install cargo-wasi
+cargo wasi build --release
+```
+The binary will be placed in `target/wasm32-wasi/release/extension.wasm`.
+
+## Deployment to SingleStoreDB
+
+To install these functions using the MySQL client, use the following commands.  This command assumes you have built the Wasm module and your current directory is the root of this Git repo.  Replace `$DBUSER`, `$DBHOST`, `$DBPORT`, and `$DBNAME` with, respectively, your database username, hostname, port, and the name of the database where you want to deploy the functions.
+```bash
+cat <<EOF | mysql -u $DBUSER -h $DBHOST -P $DBPORT -D $DBNAME -p
+CREATE OR REPLACE AGGREGATE bloom_filter(
+    text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL)
 RETURNS LONGBLOB NOT NULL
 WITH STATE HANDLE
-AS WASM FROM BASE64 '$WASM_B64'
-WITH WIT FROM BASE64 '$WIT_B64'
+AS WASM FROM BASE64 '`base64 -w 0 target/wasm32-wasi/release/extension.wasm`'
+WITH WIT FROM BASE64 '`base64 -w 0 extension.wit`'
 INITIALIZE WITH bloom_init_handle
 ITERATE WITH bloom_update_handle
 MERGE WITH bloom_merge_handle
 TERMINATE WITH bloom_serialize_handle
 SERIALIZE WITH bloom_serialize_handle
-DESERIALIZE WITH bloom_deserialize_handle;
+DESERIALIZE WITH bloom_deserialize_handle
+EOF
+
+cat <<EOF | mysql -u $DBUSER -h $DBHOST -P $DBPORT -D $DBNAME -p
+CREATE OR REPLACE FUNCTION bloom_maybe_exists
+AS WASM FROM BASE64 '`base64 -w 0 target/wasm32-wasi/release/extension.wasm`'
+WITH WIT FROM BASE64 '`base64 -w 0 extension.wit`'
+EOF
 ```
 
-## Tools
+Alternatively, you can install these functions using [pushwasm](https://github.com/singlestore-labs/pushwasm) with the following command lines.  As above, be sure to substitute the environment variables with values of your own.
+```bash
+pushwasm udaf --force --prompt --name bloom_filter \
+    --wasm target/wasm32-wasi/release/extension.wasm \
+    --wit extension.wit \
+    --conn "mysql://$DBUSER@$DBHOST:$DBPORT/$DBNAME" \
+    --abi canonical \
+    --type 'longblob not null' \
+    --arg 'text character set utf8mb4 collate utf8mb4_general_ci not null' \
+    --state HANDLE \
+    --init bloom_init_handle \
+    --iter bloom_update_handle \
+    --merge bloom_merge_handle \
+    --terminate bloom_serialize_handle \
+    --serialize bloom_serialize_handle \
+    --deserialize bloom_deserialize_handle
 
-To use the tools in this repo, you will need to have Docker installed on your system.  Most of these tools can be installed locally as well:
+pushwasm udf --force --prompt --name bloom_maybe_exists \
+    --wasm target/wasm32-wasi/debug/extension.wasm \
+    --wit extension.wit \
+    --conn "mysql://$DBUSER@$DBHOST:$DBPORT/$DBNAME"
+```
 
-### [rust/cargo](https://www.rust-lang.org)
-The Rust compiler with the *stable* toolchain.  It has been configured with compilation targets for the default platform: *wasm32-wasi*.
+## Usage
+The following is a simple example that creates two tables with a columns of strings.  The first table's column is used to generate a Bloom Filter, which we store in a User Defined Variable.  We then run the Bloom Filter on the strings in the second table.
 
-### [WIT bindgen](https://github.com/WebAssembly/wasi-sdk)
-A language binding generator for the WIT IDL.
+```sql
+CREATE TABLE t1(s TEXT);
+INSERT INTO t1(s) VALUES ("Bob"), ("Frank"), ("George"), ("Henry");
+CREATE TABLE t2(s TEXT);
+INSERT INTO t2(s) VALUES ("Jake"), ("Martin"), ("Flo"), ("Frank"), ("George");
 
-## Useful other tools
+SELECT bloom_filter(s) FROM t1 INTO @bloom;
 
-### [writ](https://github.com/singlestore-labs/writ)
-A utility to help test Wasm functions locally without the need to create a separate driver program.  Please see its dedicated [Git Repository](https://github.com/singlestore-labs/writ) for more information.
-
-### [pushwasm](https://github.com/singlestore-labs/pushwasm)
-A utility that allows you to easily import your locally-built Wasm function into SingleStoreDB as a UDF or TVF.  Please see its dedicated [Git Repository](https://github.com/singlestore-labs/pushwasm) for more information.
-
-## Development
-
-The project provides a simple rust project which automatically generates the rust bindings & compiles the sources into a Wasm binary. Afterwards, a utility script is available to generate a SQL import script to load the UDFs/TVFs into a SingleStore instance.
-
-Alternatively each step can be done individually using the following workflow:
-
-1. Start with the module interface, as defined in the [extension.wit](https://github.com/singlestore-labs/singlestoredb-extension-rust-template/blob/main/extension.wit) file. Using the `wit-bindgen` tool you can generate the C stubs required to call the newly defined Wasm functions: 
-    ```sh
-    wit-bindgen c --export extension.wit
-    ```
-
-1. Compile your program using the rust compiler targeting the `wasm32-wasi` toolchain:
-    ```sh
-    # Debug build
-    cargo wasi build
-    # Release build
-    cargo wasi build --release
-    ```
-
-1. Once the Wasm binary has been created, you can create a SQL import statement using the [create_loader.sh](https://github.com/singlestore-labs/singlestoredb-extension-rust-template/blob/main/create_loader.sh) script. This creates a `load_extension.sql` file importing the TVF/UDFs using Base64:
-    ```sh
-    mysql -h <my-host> -u <my-yser> -p -D <my-database> < load_extension.sql
-    ```
-    Alternatively you can use the `pushwasm` tool to push a single UFD/TVF:
-    ```sh
-    pushwasm --tvf --prompt mysql://<my-user>@<my-host>:3306/<my-database> --wit extension.wit extension.wasm greet
-    ```
+SELECT s, bloom_maybe_exists(@bloom, s) FROM t2;
+```
+This should produce the following output:
+```console
++--------+-------------------------------+
+| s      | bloom_maybe_exists(@bloom, s) |
++--------+-------------------------------+
+| Jake   |                             0 |
+| Flo    |                             0 |
+| George |                             1 |
+| Martin |                             0 |
+| Frank  |                             1 |
++--------+-------------------------------+
+5 rows in set (0.610 sec)
+```
 
 ## Additional Information
 
