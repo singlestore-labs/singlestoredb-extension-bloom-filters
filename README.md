@@ -2,6 +2,8 @@
 
 ![Rust Build](https://github.com/singlestore-labs/singlestoredb-extension-bloom-filters/actions/workflows/rust-docker.yml/badge.svg) ![Release](https://github.com/singlestore-labs/singlestoredb-extension-bloom-filters/actions/workflows/release.yml/badge.svg)
 
+**Attention**: The code in this repository is intended for experimental use only and is not fully tested, documented, or supported by SingleStore. Visit the [SingleStore Forums](https://www.singlestore.com/forum/) to ask questions about this repository.
+
 ## Introduction
 
 [Bloom filters](https://hur.st/bloomfilter/?n=1000000&p=0.01&m=&k=100) are a space-efficient probabilistic data structure that can be used to test whether an 
